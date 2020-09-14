@@ -10,7 +10,6 @@ from bidi.algorithm import get_display
 from sklearn.model_selection import train_test_split
 
 
-#path = os.getcwd()+"/Desktop/NMT Deployment/model/ara.txt"
 
 path = 'C:/Users/hp/Desktop/internship2020/NMT att/machine-translation-nmt/model/real.txt'
 
@@ -48,7 +47,7 @@ class LanguageIndex():
             self.idx2word[index] = word
 
 
-class nmt_ar2en(object):
+class nmt_dt2ar(object):
 
     def __init__(self):
         # Run prepossessing
@@ -140,10 +139,10 @@ class nmt_ar2en(object):
             
             # Vectorize the input and target languages
             
-            # English sentences
+            # Tunisian sentences
         input_tensor = [[inp_lang.word2idx[s] for s in en.split(' ')] for en, ma in pairs]
             
-            # Marathi sentences
+            # arabic sentences
         target_tensor = [[targ_lang.word2idx[s] for s in ma.split(' ')] for en, ma in pairs]
             
             # Calculate max_length of input and output tensor
@@ -175,11 +174,11 @@ class nmt_ar2en(object):
                                    recurrent_initializer='glorot_uniform')
     class Encoder(tf.keras.Model):
           def __init__(self, vocab_size, embedding_dim, enc_units, batch_sz):
-            super(nmt_ar2en.Encoder, self).__init__()
+            super(nmt_dt2ar.Encoder, self).__init__()
             self.batch_sz = batch_sz
             self.enc_units = enc_units
             self.embedding = tf.keras.layers.Embedding(vocab_size, embedding_dim)
-            self.gru = nmt_ar2en.gru(self, self.enc_units)
+            self.gru = nmt_dt2ar.gru(self, self.enc_units)
 
 
           def call(self, x, hidden):
@@ -204,11 +203,11 @@ class nmt_ar2en(object):
             :param dec_units: Number of GRUs units
             :param batch_sz: batch size ** minimize it for low RAM
             """
-            super(nmt_ar2en.Decoder, self).__init__()
+            super(nmt_dt2ar.Decoder, self).__init__()
             self.batch_sz = batch_sz
             self.dec_units = dec_units
             self.embedding = tf.keras.layers.Embedding(vocab_size, embedding_dim)
-            self.gru =nmt_ar2en.gru(self, self.dec_units)
+            self.gru =nmt_dt2ar.gru(self, self.dec_units)
             self.fc = tf.keras.layers.Dense(vocab_size)
 
             # used for attention
