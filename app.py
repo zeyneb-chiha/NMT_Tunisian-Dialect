@@ -1,5 +1,5 @@
 import os
-from model import nmt_ar2en
+from model import nmt_dt2ar
 
 from flask import Flask, request, send_from_directory, render_template, json
 
@@ -7,7 +7,7 @@ app = Flask(__name__)
 
 save_dir = '/app/model/model_save'
 
-nmt = nmt_ar2en()
+nmt = nmt_dt2ar()
 nmt.load_model(save_dir=save_dir)
 x = 'test'
 
@@ -26,14 +26,14 @@ def index():
 
 @app.route("/", methods=['POST'])
 def move_forward():
-    ara_txt = request.form.get('arabic-text')
-    eng_txt = ''
+    DT_txt = request.form.get('arabic-text')
+    ara_txt = ''
     try:
-        eng_txt,_,_ = nmt.translate_api_response(ara_txt)
+       ara_txt,_,_ = nmt.translate_api_response(DT_txt)
     except KeyError as e:
-        eng_txt = "Error with this word '%s', Check the spelling."%e
+        ara_txt = "Error with this word '%s', Check the spelling."%e
     finally:
-        return render_template('index.html', message=[ara_txt, eng_txt])
+        return render_template('index.html', message=[DT_txt, ara_txt])
 
 
 app.config['TRAP_HTTP_EXCEPTIONS']=True
