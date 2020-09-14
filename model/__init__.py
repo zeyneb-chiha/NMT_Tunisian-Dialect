@@ -1,1 +1,1 @@
-from model.nmt import nmt_ar2en
+from model.nmt import nmt_dt2ar
