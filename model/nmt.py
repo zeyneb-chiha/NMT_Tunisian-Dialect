@@ -84,6 +84,19 @@ class nmt_dt2ar(object):
         dataset = tf.data.Dataset.from_tensor_slices((input_tensor_train, target_tensor_train)).shuffle(self.BUFFER_SIZE)
         dataset = dataset.batch(self.BATCH_SIZE, drop_remainder=True)
         
+        example_input_batch, example_target_batch = next(iter(dataset))
+        example_input_batch.shape, example_target_batch.shape
+
+        self.encoder = self.Encoder(self.vocab_inp_size, self.embedding_dim, self.units, self.BATCH_SIZE)
+
+        # sample input
+        sample_hidden = self.encoder.initialize_hidden_state()
+        sample_output, sample_hidden = self.encoder(example_input_batch, sample_hidden)
+        
+
+        attention_layer = self.BahdanauAttention(10)
+        attention_result, attention_weights = attention_layer(sample_hidden, sample_output)
+        
 
 
 
@@ -189,50 +202,51 @@ class nmt_dt2ar(object):
           def initialize_hidden_state(self):
             return tf.zeros((self.batch_sz, self.enc_units))
 
-    class Decoder(tf.keras.Model):
-        """
-        Create the decoder, also needs to have access to the source information.
-        This class create decoder which consists of decoder_cell (similar to encoder_cell),
-        a helper, and the previous encoder_state as inputs.
-        """
-
-        def __init__(self, vocab_size, embedding_dim, dec_units, batch_sz):
-            """
-            :param vocab_size: Size of vocabulary
-            :param embedding_dim: Embedding vector length
-            :param dec_units: Number of GRUs units
-            :param batch_sz: batch size ** minimize it for low RAM
-            """
-            super(nmt_dt2ar.Decoder, self).__init__()
-            self.batch_sz = batch_sz
-            self.dec_units = dec_units
-            self.embedding = tf.keras.layers.Embedding(vocab_size, embedding_dim)
-            self.gru =nmt_dt2ar.gru(self, self.dec_units)
-            self.fc = tf.keras.layers.Dense(vocab_size)
-
-            # used for attention
-            self.W1 = tf.keras.layers.Dense(self.dec_units)
-            self.W2 = tf.keras.layers.Dense(self.dec_units)
+    class BahdanauAttention(tf.keras.layers.Layer):
+          def __init__(self, units):
+            super(nmt_dt2ar.BahdanauAttention, self).__init__()
+            self.W1 = tf.keras.layers.Dense(units)
+            self.W2 = tf.keras.layers.Dense(units)
             self.V = tf.keras.layers.Dense(1)
 
-        def call(self, x, hidden, enc_output):
-            # enc_output shape == (batch_size, max_length, hidden_size)
-
-            # hidden shape == (batch_size, hidden size)
-            # hidden_with_time_axis shape == (batch_size, 1, hidden size)
-            # we are doing this to perform addition to calculate the score
-            hidden_with_time_axis = tf.expand_dims(hidden, 1)
+          def call(self, query, values):
+            # query hidden state shape == (batch_size, hidden size)
+            # query_with_time_axis shape == (batch_size, 1, hidden size)
+            # values shape == (batch_size, max_len, hidden size)
+            # we are doing this to broadcast addition along the time axis to calculate the score
+            query_with_time_axis = tf.expand_dims(query, 1)
 
             # score shape == (batch_size, max_length, 1)
-            # we get 1 at the last axis because we are applying tanh(FC(EO) + FC(H)) to self.V
-            score = self.V(tf.nn.tanh(self.W1(enc_output) + self.W2(hidden_with_time_axis)))
+            # we get 1 at the last axis because we are applying score to self.V
+            # the shape of the tensor before applying self.V is (batch_size, max_length, units)
+            score = self.V(tf.nn.tanh(
+                self.W1(query_with_time_axis) + self.W2(values)))
 
             # attention_weights shape == (batch_size, max_length, 1)
             attention_weights = tf.nn.softmax(score, axis=1)
 
             # context_vector shape after sum == (batch_size, hidden_size)
-            context_vector = attention_weights * enc_output
+            context_vector = attention_weights * values
             context_vector = tf.reduce_sum(context_vector, axis=1)
+
+            return context_vector, attention_weights   
+
+    class Decoder(tf.keras.Model):
+          def __init__(self, vocab_size, embedding_dim, dec_units, batch_sz):
+            super(nmt_dt2ar.Decoder, self).__init__()
+            self.batch_sz = batch_sz
+            self.dec_units = dec_units
+            self.embedding = tf.keras.layers.Embedding(vocab_size, embedding_dim)
+            self.gru =nmt_dt2ar.gru(self, self.dec_units)
+
+            self.fc = tf.keras.layers.Dense(vocab_size)
+
+            # used for attention
+            self.attention = nmt_dt2ar.BahdanauAttention(self.dec_units)
+
+          def call(self, x, hidden, enc_output):
+            # enc_output shape == (batch_size, max_length, hidden_size)
+            context_vector, attention_weights = self.attention(hidden, enc_output)
 
             # x shape after passing through embedding == (batch_size, 1, embedding_dim)
             x = self.embedding(x)
@@ -246,18 +260,10 @@ class nmt_dt2ar(object):
             # output shape == (batch_size * 1, hidden_size)
             output = tf.reshape(output, (-1, output.shape[2]))
 
-            # output shape == (batch_size * 1, vocab)
+            # output shape == (batch_size, vocab)
             x = self.fc(output)
 
             return x, state, attention_weights
-
-        def initialize_hidden_state(self):
-            return tf.zeros((self.batch_sz, self.dec_units))
-
-        def saved_hidden_state(self):
-            return self.gru.states
-
-
 
 
     def loss_function(self, real, pred):
