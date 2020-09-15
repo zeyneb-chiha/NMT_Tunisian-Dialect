@@ -11,6 +11,10 @@ nmt = nmt_dt2ar()
 nmt.load_model(save_dir=save_dir)
 x = 'test'
 
+@app.route('/favicon.ico')
+def favicon():
+    return send_from_directory(os.path.join(app.root_path, app.static_folder), 'favicon.ico', mimetype='favicon.ico')
+
 
 
 @app.route('/robots.txt')
