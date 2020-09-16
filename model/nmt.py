@@ -11,7 +11,8 @@ from sklearn.model_selection import train_test_split
 
 
 
-path = 'C:/Users/hp/Desktop/internship2020/NMT att/machine-translation-nmt/model/real.txt'
+#path = 'C:/Users/hp/Desktop/internship2020/NMT att/machine-translation-nmt/model/real.txt'
+path='/app/model/real.txt'
 
 class LanguageIndex():
     ''' Creates a word -> index mapping
